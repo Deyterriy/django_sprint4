@@ -16,21 +16,20 @@ from django.db.models import Count
 
 class HomePageView(ListView):
     model = Post
-    queryset = (
-        Post.objects.select_related('author', 'category', 'location')
-        .filter(
-            pub_date__lte=timezone.now(),
-            is_published=True,
-            category__is_published=True,
-        )
-        .order_by('-pub_date')
-    )
     paginate_by = 10
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        queryset = queryset.annotate(comment_count=Count('comment'))
-        return queryset
+        queryset = (
+            Post.objects.select_related(
+                'author', 'category', 'location'
+            ).filter(
+                pub_date__lte=timezone.now(),
+                is_published=True,
+                category__is_published=True,
+            )
+        ).annotate(comment_count=Count('comment'))
+        return queryset.order_by('-pub_date')
 
 
 class PostDetailView(DetailView):
@@ -47,6 +46,7 @@ class PostDetailView(DetailView):
 class CategoryListView(ListView):
     model = Post
     template_name = 'blog/category_list.html'
+    paginate_by = 10
 
     def get_queryset(self):
         category_slug = self.kwargs.get('category_slug')
@@ -75,22 +75,15 @@ class CategoryListView(ListView):
         context['category'] = category
         return context
 
-    paginate_by = 10
-
 
 class ProfileView(ListView):
     model = Post
     template_name = 'blog/profile_list.html'
+    paginate_by = 10
 
     def get_queryset(self):
         username = self.kwargs['username']
         self.author = get_object_or_404(User, username=username)
-        if self.author == self.request.user:
-            return (
-                Post.objects.filter(author=self.author)
-                .annotate(comment_count=Count('comment'))
-                .order_by('-pub_date')
-            )
         return (
             super()
             .get_queryset()
@@ -103,8 +96,6 @@ class ProfileView(ListView):
         context = super().get_context_data(**kwargs)
         context['profile'] = self.author
         return context
-
-    paginate_by = 10
 
 
 class PostCreateView(LoginRequiredMixin, CreateView):
@@ -127,8 +118,7 @@ class PostUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'blog/create_post.html'
 
     def dispatch(self, request, *args, **kwargs):
-        comment_pk = self.kwargs.get(self.pk_url_kwarg)
-        author = get_object_or_404(self.model, pk=comment_pk).author
+        author = self.get_object().author
         if author != self.request.user:
             return redirect('blog:post_detail', pk=self.kwargs['pk'])
         self.post_data = get_object_or_404(Post, pk=kwargs['pk'])
@@ -144,8 +134,7 @@ class PostDeleteView(DeleteView):
     template_name = 'blog/create_post.html'
 
     def dispatch(self, request, *args, **kwargs):
-        comment_pk = self.kwargs.get(self.pk_url_kwarg)
-        author = get_object_or_404(self.model, pk=comment_pk).author
+        author = self.get_object().author
         if author != self.request.user:
             return redirect('blog:post_detail', pk=self.kwargs['pk'])
         self.post_data = get_object_or_404(Post, pk=kwargs['pk'])
@@ -201,8 +190,7 @@ class CommentUpdateView(LoginRequiredMixin, UpdateView):
     post_data = None
 
     def dispatch(self, request, *args, **kwargs):
-        comment_pk = self.kwargs.get(self.pk_url_kwarg)
-        author = get_object_or_404(self.model, pk=comment_pk).author
+        author = self.get_object().author
         if author != self.request.user:
             return redirect('blog:post_detail', pk=self.kwargs['pk'])
         self.post_data = get_object_or_404(Post, pk=kwargs['pk'])
@@ -219,8 +207,7 @@ class CommentDeleteView(LoginRequiredMixin, DeleteView):
     template_name = 'blog/comment.html'
 
     def dispatch(self, request, *args, **kwargs):
-        comment_pk = self.kwargs.get(self.pk_url_kwarg)
-        author = get_object_or_404(self.model, pk=comment_pk).author
+        author = self.get_object().author
         if author != self.request.user:
             return redirect('blog:post_detail', pk=self.kwargs['pk'])
         self.post_data = get_object_or_404(Post, pk=kwargs['pk'])

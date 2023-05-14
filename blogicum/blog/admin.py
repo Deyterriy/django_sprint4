@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Post, Location, Category
+from .models import Post, Location, Category, Comment
 
 
 @admin.register(Post)
@@ -31,8 +31,8 @@ class LocationAdmin(admin.ModelAdmin):
         'is_published',
         'created_at',
     )
-    list_editable = ('is_published', )
-    search_fields = ('name', )
+    list_editable = ('is_published',)
+    search_fields = ('name',)
 
 
 class PostInline(admin.StackedInline):
@@ -42,9 +42,7 @@ class PostInline(admin.StackedInline):
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    inlines = (
-        PostInline,
-    )
+    inlines = (PostInline,)
     list_display = (
         'title',
         'description',
@@ -52,6 +50,22 @@ class CategoryAdmin(admin.ModelAdmin):
         'is_published',
         'created_at',
     )
-    list_editable = ('is_published', )
-    search_fields = ('title', 'slug', )
-    list_filter = ('title', 'slug', )
+    list_editable = ('is_published',)
+    search_fields = (
+        'title',
+        'slug',
+    )
+    list_filter = (
+        'title',
+        'slug',
+    )
+
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('text', 'post', 'created_at', 'author')
+    search_fields = ('text',)
+    list_filter = (
+        'post',
+        'author',
+    )
